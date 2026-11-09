@@ -1,0 +1,16 @@
+{
+  "name": "MindBridge",
+  "short_name": "MindBridge",
+  "description": "A private phone companion: decide before you open the phone, get a warning before time is up, wind down at night, and always know where a real person is.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef2f5",
+  "theme_color": "#1f5f8b",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MindBridge</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#1f5f8b">
+<meta name="description" content="A private phone companion for students: decide before you open the phone, get a warning before time is up, wind down at night, and always know where a real person is.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+/* Layout concept: one phone-width column. Calm "bridge at dusk" blues, a warm lamp-amber for gentle warnings, coral only on the help screen. System fonts only, so the app makes zero third-party requests. */
+:root{
+  --bg:#eef2f5; --surface:#ffffff; --surface-2:#f3f6f8; --line:#d8e0e6;
+  --ink:#14232b; --muted:#53636f;
+  --primary:#1f5f8b; --on-primary:#ffffff; --primary-soft:#e1edf5; --primary-ink:#174a6c;
+  --warm:#f2b441; --warm-soft:#fff3d9; --warm-ink:#6b4500;
+  --help-soft:#fdece1; --help-ink:#8a3b0f; --help:#b4501a;
+  --c-study:#2b6cb0; --c-work:#2a8a7f; --c-fun:#7a5ccf; --c-social:#c98a1b; --c-sleep:#5b5fc7; --c-mood:#d9822b;
+  --shadow:0 1px 2px rgba(20,35,43,.06),0 8px 24px rgba(20,35,43,.06);
+  --font:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI Variable","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --radius:18px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d171d; --surface:#15222a; --surface-2:#1b2b35; --line:#2a3d49;
+    --ink:#e7eff3; --muted:#9db0bc;
+    --primary:#7bbdee; --on-primary:#07202f; --primary-soft:#1a3345; --primary-ink:#a9d6f5;
+    --warm:#f2b441; --warm-soft:#3a2e12; --warm-ink:#f6d28a;
+    --help-soft:#3a2418; --help-ink:#f5b894; --help:#f0a477;
+    --c-study:#6aa7e0; --c-work:#4cbfae; --c-fun:#a58ce8; --c-social:#e0b04a; --c-sleep:#8f93ee; --c-mood:#f0a35a;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d171d; --surface:#15222a; --surface-2:#1b2b35; --line:#2a3d49;
+  --ink:#e7eff3; --muted:#9db0bc;
+  --primary:#7bbdee; --on-primary:#07202f; --primary-soft:#1a3345; --primary-ink:#a9d6f5;
+  --warm:#f2b441; --warm-soft:#3a2e12; --warm-ink:#f6d28a;
+  --help-soft:#3a2418; --help-ink:#f5b894; --help:#f0a477;
+  --c-study:#6aa7e0; --c-work:#4cbfae; --c-fun:#a58ce8; --c-social:#e0b04a; --c-sleep:#8f93ee; --c-mood:#f0a35a;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--font);-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+h1{font-size:1.75rem;line-height:1.15;letter-spacing:-.02em;text-wrap:balance}
+h2{font-size:1.125rem;line-height:1.25;letter-spacing:-.01em;text-wrap:balance}
+h3{font-size:1rem}
+a{color:var(--primary-ink)}
+:focus-visible{outline:3px solid var(--primary);outline-offset:2px;border-radius:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.app{max-width:480px;margin:0 auto;min-height:100dvh;padding-block:12px 110px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media (min-width:560px){body{background:color-mix(in srgb,var(--bg) 82%,var(--ink) 18%)}.app{background:var(--bg);box-shadow:0 0 0 1px var(--line),0 20px 60px rgba(0,0,0,.15)}}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.row.between{justify-content:space-between;flex-wrap:nowrap}
+.grow{flex:1;min-width:0}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+.tiny{font-size:.78rem}
+.eyebrow{font-size:.75rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.top{display:flex;align-items:center;justify-content:space-between;padding:4px 0 10px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em;font-size:1.15rem}
+.brand svg{width:30px;height:30px}
+.icon-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;cursor:pointer}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.card.flat{box-shadow:none;background:var(--surface-2)}
+.card h2+.sub,.sub{color:var(--muted);font-size:.9rem;margin-top:2px}
+.btn{min-height:48px;padding:10px 18px;border-radius:14px;border:1.5px solid transparent;font-weight:700;cursor:pointer;background:var(--primary);color:var(--on-primary);display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;text-align:center}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.block{width:100%}
+.btn.ghost{background:transparent;border-color:var(--line);color:var(--ink)}
+.btn.soft{background:var(--primary-soft);color:var(--primary-ink)}
+.btn.warm{background:var(--warm);color:#3a2500}
+.btn.sm{min-height:40px;padding:6px 14px;font-size:.9rem;border-radius:12px}
+.btn.link{background:none;border:none;color:var(--primary-ink);padding:6px 4px;min-height:40px;text-decoration:underline}
+.chip{min-height:44px;padding:8px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:8px}
+.chip[aria-pressed="true"],.chip.on{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-ink)}
+.chip.sm{min-height:36px;padding:4px 12px;font-size:.9rem}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.label{font-weight:700;font-size:.9rem}
+input[type=text],input[type=number],input[type=time],input[type=tel],textarea,select{width:100%;min-height:46px;padding:9px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
+textarea{min-height:110px;resize:vertical}
+input[type=range]{width:100%;accent-color:var(--primary);min-height:36px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--primary-soft);color:var(--primary-ink);font-size:.8rem;font-weight:700}
+.pill.warm{background:var(--warm-soft);color:var(--warm-ink)}
+.pill.ghost{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+/* tab bar */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs ul{list-style:none;margin:0 auto;padding:6px max(6px,env(safe-area-inset-left,0px));display:grid;grid-template-columns:repeat(5,1fr);max-width:480px;gap:2px}
+.tabs button{width:100%;min-height:56px;border:0;background:none;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:.72rem;font-weight:700;color:var(--muted);cursor:pointer}
+.tabs button[aria-current="page"]{color:var(--primary-ink);background:var(--primary-soft)}
+.tabs .help button{color:var(--help)}
+.tabs .help button[aria-current="page"]{background:var(--help-soft);color:var(--help-ink)}
+/* hero */
+.hero{background:var(--primary);color:var(--on-primary);border-radius:24px;padding:20px;position:relative;overflow:hidden}
+.hero p{opacity:.9}
+.hero .btn{background:var(--on-primary);color:var(--primary);width:100%;margin-top:14px;min-height:56px;font-size:1.05rem}
+.hero svg.arc{position:absolute;right:-20px;top:-6px;width:170px;opacity:.18;pointer-events:none}
+.hero>*:not(svg){position:relative}
+/* faces */
+.faces{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.face{min-height:64px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:1.6rem;line-height:1}
+.face span{font-size:.68rem;font-weight:700;color:var(--muted)}
+.face[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-soft)}
+/* reasons grid */
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.reason{min-height:84px;border-radius:16px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;padding:12px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left}
+.reason .ico{width:26px;height:26px}
+.reason b{font-size:.98rem}
+.reason small{color:var(--muted)}
+.reason[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-soft)}
+/* stepper */
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper input{text-align:center;font-weight:800;font-size:1.4rem;max-width:110px}
+.stepper .icon-btn{flex:none}
+/* clock */
+.clockwrap{display:grid;place-items:center;position:relative;margin:6px auto 2px;width:230px;height:230px}
+.clockwrap svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.clockwrap .ring-bg{stroke:var(--line)}
+.clockwrap .ring{stroke:var(--primary);transition:stroke-dashoffset .9s linear}
+.clockwrap.warn .ring{stroke:var(--warm)}
+.clockwrap .t{position:relative;text-align:center}
+.clockwrap .t b{display:block;font-size:2.6rem;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.1}
+.banner{border-radius:16px;padding:12px 14px;display:flex;gap:12px;align-items:center;background:var(--warm-soft);color:var(--warm-ink);border:1px solid color-mix(in srgb,var(--warm) 50%,transparent)}
+.banner.calm{background:var(--primary-soft);color:var(--primary-ink);border-color:transparent}
+.note{border-radius:14px;padding:10px 12px;background:var(--surface-2);border:1px dashed var(--line);font-size:.86rem;color:var(--muted)}
+.help-card{background:var(--help-soft);border-color:transparent;color:var(--help-ink)}
+.help-card h2,.help-card a.big{color:var(--help-ink)}
+.contact{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line)}
+.contact:first-of-type{border-top:0}
+.num{font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+details{border-top:1px solid var(--line);padding:2px 0}
+details:first-of-type{border-top:0}
+summary{min-height:48px;display:flex;align-items:center;cursor:pointer;font-weight:700;list-style:none;gap:8px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";margin-left:auto;font-size:1.3rem;color:var(--muted)}
+details[open] summary::after{content:"–"}
+details>div{padding:0 0 12px;color:var(--muted);font-size:.93rem}
+details ol,details ul,.steps{margin:0;padding-left:1.2rem;display:flex;flex-direction:column;gap:8px}
+.check{display:flex;align-items:center;gap:12px;min-height:48px;padding:6px 0;border-top:1px solid var(--line);cursor:pointer}
+.check:first-of-type{border-top:0}
+.check input{width:24px;height:24px;accent-color:var(--primary);flex:none}
+.check.done span{color:var(--muted);text-decoration:line-through}
+/* charts */
+.bar{height:12px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px}
+.stacked{display:flex;height:22px;border-radius:99px;overflow:hidden;background:var(--surface-2);gap:2px}
+.stacked i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.84rem}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--dot);margin-right:6px}
+svg.chart{width:100%;height:auto;display:block}
+svg.chart text{fill:var(--muted);font-size:10px;font-family:var(--font)}
+svg.chart .grid{stroke:var(--line);stroke-width:1}
+.tile{background:var(--surface-2);border-radius:14px;padding:10px 12px}
+.tile b{display:block;font-size:1.35rem;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+/* modal */
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(8,16,22,.55);display:flex;align-items:flex-end;justify-content:center;padding-top:env(safe-area-inset-top,0px)}
+.modal{background:var(--surface);width:min(480px,100%);max-height:92dvh;overflow:auto;border-radius:24px 24px 0 0;padding:20px max(16px,env(safe-area-inset-left,0px)) calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px;animation:up .22s ease-out}
+@media (min-width:560px){.overlay{align-items:center}.modal{border-radius:24px}}
+@keyframes up{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:.92rem;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
+.toast:empty{display:none}
+.breath{width:64px;height:64px;border-radius:50%;background:var(--primary-soft);border:2px solid var(--primary);margin:2px auto;animation:breathe 8s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(.7)}50%{transform:scale(1.08)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.breath{transform:none}}
+.welcome{padding-top:20px;gap:18px}
+.welcome .logo{width:64px;height:64px}
+ul.plain{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
+ul.plain li{display:flex;gap:10px;align-items:flex-start}
+ul.plain li .ico{color:var(--primary);margin-top:2px;width:20px;height:20px}
+.swap-text{font-size:1.15rem;font-weight:700;line-height:1.3;text-wrap:balance}
+</style>
+</head>
+<body>
+<div id="app" class="app"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script type="application/json" id="content">
+{
+  "version": 1,
+  "reasons": [
+    {"id":"study","label":"Study","icon":"book","minutes":45,"goal":"e.g. finish chapter 3 notes","group":"study","social":false},
+    {"id":"gaming","label":"Gaming","icon":"game","minutes":30,"goal":"e.g. 2 matches","group":"fun","social":false},
+    {"id":"watching","label":"Watching","icon":"tv","minutes":30,"goal":"e.g. 1 episode, or reels until the timer","group":"fun","social":true},
+    {"id":"news","label":"News & threads","icon":"news","minutes":15,"goal":"e.g. headlines only","group":"social","social":true},
+    {"id":"client","label":"Client work","icon":"work","minutes":40,"goal":"e.g. send the revision","group":"work","social":false},
+    {"id":"chats","label":"Chats","icon":"chat","minutes":15,"goal":"e.g. catch up, then plan to meet","group":"social","social":true}
+  ],
+  "focusAreas": [
+    {"id":"control","label":"Stopping on time","hint":"Sessions that run longer than planned"},
+    {"id":"sleep","label":"Sleep","hint":"Late nights and tired mornings"},
+    {"id":"interruptions","label":"Interruptions","hint":"Notifications and pressure to reply"},
+    {"id":"mood","label":"Comparison & mood","hint":"How feeds make me feel"},
+    {"id":"connection","label":"Real-life time","hint":"Meeting people, not just chatting"},
+    {"id":"help","label":"Knowing who to talk to","hint":"A real person when I need one"}
+  ],
+  "plans": {
+    "control": "Tap Pause and choose before your first feed or game today, and pick a time you can live with.",
+    "sleep": "Start your wind-down about 30 minutes before quiet hours, and charge your phone away from your bed.",
+    "interruptions": "Set quiet hours in Unwind and choose who can still call, so the rest can wait.",
+    "mood": "Do the daily check-in. If a feed makes you feel behind, read one reframe card.",
+    "connection": "Pick one offline idea in Unwind and plan it with a friend.",
+    "help": "Add your campus counselor and one trusted person in Get help. It takes one minute."
+  },
+  "pulledBy": [
+    {"id":"feeds","label":"Feeds & reels"},
+    {"id":"games","label":"Games"},
+    {"id":"shows","label":"Shows"},
+    {"id":"groups","label":"Group chats"},
+    {"id":"news","label":"News"},
+    {"id":"work","label":"Work messages"},
+    {"id":"nothing","label":"Nothing much"}
+  ],
+  "reframes": [
+    {"text":"Feeds show highlight reels, not whole lives. Nobody posts the dull Tuesday.","tip":"Try this: mute one account that leaves you feeling behind. They will not be notified."},
+    {"text":"Someone else's result is not a verdict on yours. You are only seeing one frame of their story.","tip":"Try this: before scrolling, name one thing you finished this week."},
+    {"text":"A comment can sound harsher in text than it was meant. You do not have to reply right now.","tip":"Try this: put the phone down for ten minutes, then decide whether it needs an answer."},
+    {"text":"Staying informed does not need a live feed. Two short check-ins a day tell you what matters.","tip":"Try this: choose two fixed times for news and use a timer for each."},
+    {"text":"Feeling behind while scrolling is a signal about the feed, not about you.","tip":"Try this: switch to a chat with a real friend or step outside for five minutes."}
+  ],
+  "swaps": [
+    {"id":"w1","kind":"solo","text":"Take a 10-minute walk without your phone"},
+    {"id":"w2","kind":"solo","text":"Make a cup of chai and drink it slowly, screen face down"},
+    {"id":"w3","kind":"solo","text":"Do a short stretch or workout (5 minutes is enough)"},
+    {"id":"w4","kind":"solo","text":"Write tomorrow's top 3 tasks on paper"},
+    {"id":"w5","kind":"solo","text":"Read five pages of a book or notes"},
+    {"id":"w6","kind":"solo","text":"Sit quietly or pray for five minutes"},
+    {"id":"f1","kind":"friends","text":"Have tea or a meal together at the canteen"},
+    {"id":"f2","kind":"friends","text":"Go for an evening walk, or a quick game of cricket or football"},
+    {"id":"f3","kind":"friends","text":"Call a friend you have not spoken to in a while"},
+    {"id":"f4","kind":"friends","text":"Study together for 30 minutes, phones in a pile"},
+    {"id":"f5","kind":"friends","text":"Knock on a roommate's door and have chai together"}
+  ],
+  "windDown": [
+    "Plug in the phone away from the bed",
+    "Turn on Do Not Disturb or Focus",
+    "Set tomorrow's alarm, then leave the phone alone",
+    "Note down tomorrow's top 3 tasks",
+    "Wash up and stretch",
+    "Read a few pages or sit quietly"
+  ],
+  "helplines": {
+    "umang": {"name":"Umang free 24/7 helpline","note":"Free, confidential mental-health support.","number":"","verify":true},
+    "nccia": {"name":"NCCIA cyber crime helpline","note":"Online harassment, blackmail, fake accounts.","number":"1799"},
+    "rescue": {"name":"Emergency rescue","note":"Immediate danger or a medical emergency.","number":"1122"},
+    "police": {"name":"Police","note":"If you are in danger or being threatened.","number":"15"}
+  },
+  "harassment": [
+    "Do not reply or argue. You do not owe them an answer.",
+    "Save evidence privately: screenshots with dates, usernames and links. Keep them in a place only you can open.",
+    "Block the account and report it inside the app or site.",
+    "Tell one person you trust, such as a family member, a friend or your campus counselor.",
+    "If it is blackmail, threats or a fake account, call the NCCIA helpline on 1799. If you are in danger, call 1122 or 15."
+  ],
+  "dnd": {
+    "android": "Settings, then Sound or Notifications, then Do Not Disturb. Add a schedule for your quiet hours. Under People or Exceptions, choose the contacts who can still call or message.",
+    "iphone": "Settings, then Focus, then Do Not Disturb (or add a Sleep Focus). Under People, add the contacts who can still reach you, and set a schedule matching your quiet hours."
+  }
+}
+</script>
+
+<script id="core">
+/* MindBridge core: pure logic, no DOM. Unit-tested with `node --test test/core.test.mjs`. */
+const MBCore = (() => {
+  const SCHEMA_VERSION = 1;
+  const WARN_MS = 5 * 60 * 1000;
+  const EXT_MIN = 5;
+  const FOCUS_IDS = ['control', 'sleep', 'interruptions', 'mood', 'connection', 'help'];
+  const MAX_FOCUS = 4;
+  const GROUP_OF = { study: 'study', gaming: 'fun', watching: 'fun', news: 'social', client: 'work', chats: 'social' };
+  const pad = n => String(n).padStart(2, '0');
+
+  function dateKey(d) { d = d instanceof Date ? d : new Date(d); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function addDays(key, n) { const [y, m, d] = key.split('-').map(Number); return dateKey(new Date(y, m - 1, d + n)); }
+  function uid(now) { return 's' + now.toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  function defaultState() {
+    return {
+      version: SCHEMA_VERSION,
+      profile: { focusAreas: [], consentAt: null },
+      checkins: [],
+      sessions: [],
+      active: null,
+      pair: null,
+      settings: {
+        quietFrom: '22:30', quietTo: '07:00', allowedContacts: [],
+        windDownItems: [], notificationsAllowed: false, theme: 'auto', lang: 'en'
+      },
+      contacts: { counselor: { name: '', phone: '' }, trusted: { name: '', phone: '' } },
+      windDownDone: { date: '', ids: [] }
+    };
+  }
+
+  /* Bring any stored object up to the current schema. Unknown keys are dropped. */
+  function migrate(raw) {
+    const base = defaultState();
+    if (!raw || typeof raw !== 'object') return base;
+    const arr = v => Array.isArray(v) ? v : [];
+    if (raw.profile) {
+      base.profile.focusAreas = arr(raw.profile.focusAreas).filter(x => FOCUS_IDS.includes(x)).slice(0, MAX_FOCUS);
+      base.profile.consentAt = typeof raw.profile.consentAt === 'number' ? raw.profile.consentAt : null;
+    }
+    base.checkins = arr(raw.checkins).filter(c => c && typeof c.date === 'string' && c.mood >= 1 && c.mood <= 5);
+    base.sessions = arr(raw.sessions).filter(s => s && s.id && s.type && s.startedAt);
+    base.active = raw.active && raw.active.id && raw.active.startedAt ? raw.active : null;
+    base.pair = raw.pair && raw.pair.studySessionId ? raw.pair : null;
+    if (raw.settings && typeof raw.settings === 'object') {
+      const s = raw.settings;
+      if (typeof s.quietFrom === 'string') base.settings.quietFrom = s.quietFrom;
+      if (typeof s.quietTo === 'string') base.settings.quietTo = s.quietTo;
+      base.settings.allowedContacts = arr(s.allowedContacts).filter(x => typeof x === 'string').slice(0, 20);
+      base.settings.windDownItems = arr(s.windDownItems).filter(x => x && x.id && x.text);
+      base.settings.notificationsAllowed = !!s.notificationsAllowed;
+      if (['auto', 'light', 'dark'].includes(s.theme)) base.settings.theme = s.theme;
+    }
+    if (raw.contacts) for (const k of ['counselor', 'trusted']) {
+      const c = raw.contacts[k];
+      if (c && typeof c === 'object') base.contacts[k] = { name: String(c.name || ''), phone: String(c.phone || '') };
+    }
+    if (raw.windDownDone && typeof raw.windDownDone.date === 'string') base.windDownDone = { date: raw.windDownDone.date, ids: arr(raw.windDownDone.ids) };
+    base.version = SCHEMA_VERSION;
+    return base;
+  }
+
+  /* ---- check-ins and the gentle nudge ---- */
+  function isHeavy(c) { return c.mood <= 2 || (typeof c.sleepHours === 'number' && c.sleepHours <= 4); }
+  /* Two heavy check-ins on different days inside the last three days (today included). */
+  function heavyNudge(checkins, today) {
+    const from = addDays(today, -2);
+    const byDate = {};
+    for (const c of checkins) if (c.date >= from && c.date <= today) byDate[c.date] = c;
+    return Object.values(byDate).filter(isHeavy).length >= 2;
+  }
+
+  /* ---- sessions and timers ---- */
+  function clampMin(m, fallback = 25) {
+    m = Math.round(Number(m));
+    if (!Number.isFinite(m)) return fallback;
+    return Math.min(240, Math.max(1, m));
+  }
+  const totalMin = s => s.plannedMin + (s.extended ? EXT_MIN : 0);
+  const endsAt = s => s.startedAt + totalMin(s) * 60000;
+  const remainingMs = (s, now) => endsAt(s) - now;
+  const isOver = (s, now) => remainingMs(s, now) <= 0;
+  /* Warn once, when 5 minutes remain. Sessions of 5 minutes or less are already short, so no warning. */
+  function shouldWarn(s, now) {
+    if (s.warned || s.plannedMin <= 5) return false;
+    const r = remainingMs(s, now);
+    return r > 0 && r <= WARN_MS;
+  }
+
+  function startSession(state, opts, now) {
+    if (state.active) return null;
+    const plannedMin = clampMin(opts.minutes);
+    const s = { id: uid(now), type: opts.type, plannedMin, goal: String(opts.goal || '').trim().slice(0, 80), startedAt: now, extended: false, warned: false, overNotified: false };
+    state.active = s;
+    if (opts.pair && opts.type === 'study' && opts.pair.type && opts.pair.type !== 'study') {
+      state.pair = { type: opts.pair.type, minutes: clampMin(opts.pair.minutes, 30), studySessionId: s.id };
+    }
+    return s;
+  }
+  /* One optional 5-minute extension. If time is already up, the 5 minutes start now. */
+  function extendActive(state, now) {
+    const a = state.active;
+    if (!a || a.extended) return false;
+    if (isOver(a, now)) a.startedAt = now - a.plannedMin * 60000;
+    a.extended = true;
+    a.overNotified = false;
+    return true;
+  }
+  function endActive(state, now, feltAfter) {
+    const a = state.active;
+    if (!a) return null;
+    const s = { id: a.id, type: a.type, plannedMin: a.plannedMin, goal: a.goal, startedAt: a.startedAt, endedAt: now, extended: a.extended, feltAfter: feltAfter || null };
+    state.sessions.push(s);
+    if (state.sessions.length > 500) state.sessions.shift();
+    state.active = null;
+    return s;
+  }
+  /* Study first, then play. The reward window can start once the study session is logged as ended. */
+  function pairStatus(state) {
+    const p = state.pair;
+    if (!p) return null;
+    return Object.assign({}, p, { unlocked: state.sessions.some(s => s.id === p.studySessionId && s.endedAt) });
+  }
+  function startPaired(state, now) {
+    const st = pairStatus(state);
+    if (!st || !st.unlocked || state.active) return null;
+    const s = startSession(state, { type: st.type, minutes: st.minutes }, now);
+    state.pair = null;
+    return s;
+  }
+
+  /* ---- quiet hours ---- */
+  const toMin = hhmm => { const [h, m] = String(hhmm).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+  function quietNow(from, to, now) {
+    const f = toMin(from), t = toMin(to), n = now.getHours() * 60 + now.getMinutes();
+    if (f === t) return false;
+    return f < t ? (n >= f && n < t) : (n >= f || n < t);
+  }
+
+  /* ---- weekly view ---- */
+  function weekSummary(state, today) {
+    const dates = []; for (let i = 6; i >= 0; i--) dates.push(addDays(today, -i));
+    const lastN = new Set(dates);
+    const byType = { study: 0, gaming: 0, watching: 0, news: 0, client: 0, chats: 0 };
+    const sess = state.sessions.filter(s => lastN.has(dateKey(s.startedAt)));
+    for (const s of sess) if (s.type in byType) byType[s.type] += totalMin(s);
+    const cMap = {}; for (const c of state.checkins) if (lastN.has(c.date)) cMap[c.date] = c;
+    const days = dates.map(d => {
+      const [y, m, dd] = d.split('-').map(Number);
+      return { date: d, label: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(y, m - 1, dd).getDay()], mood: cMap[d] ? cMap[d].mood : null, sleep: cMap[d] && typeof cMap[d].sleepHours === 'number' ? cMap[d].sleepHours : null };
+    });
+    return finishWeek(days, byType, sess.length + Object.keys(cMap).length > 0, false);
+  }
+  function finishWeek(days, byType, hasData, sample) {
+    const avg = a => { const v = a.filter(x => x != null); return v.length ? v.reduce((p, c) => p + c, 0) / v.length : null; };
+    const groups = { study: 0, work: 0, fun: 0, social: 0 };
+    for (const [t, m] of Object.entries(byType)) groups[GROUP_OF[t]] += m;
+    return { days, byType, groups, avgSleep: avg(days.map(d => d.sleep)), avgMood: avg(days.map(d => d.mood)), total: Object.values(byType).reduce((p, c) => p + c, 0), hasData, sample };
+  }
+  /* Clearly labelled example data, shown until the student has their own entries. */
+  function sampleWeek(today) {
+    const moods = [3, 2, 4, 3, 3, 4, 3], sleeps = [6.5, 5, 7, 6, 5.5, 7.5, 6.5];
+    const days = summaryDates(today).map((d, i) => Object.assign(d, { mood: moods[i], sleep: sleeps[i] }));
+    return finishWeek(days, { study: 260, gaming: 120, watching: 150, news: 45, client: 110, chats: 60 }, true, true);
+  }
+  function summaryDates(today) {
+    const out = [];
+    for (let i = 6; i >= 0; i--) { const d = addDays(today, -i); const [y, m, dd] = d.split('-').map(Number); out.push({ date: d, label: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(y, m - 1, dd).getDay()] }); }
+    return out;
+  }
+
+  /* ---- misc ---- */
+  function planFriendText(swap, when) {
+    return 'Assalam o Alaikum! Are you free ' + (when || 'later today') + '? I was thinking: ' + swap.text.charAt(0).toLowerCase() + swap.text.slice(1) + '. Phones away. Let me know.';
+  }
+  function exportJSON(state) { return JSON.stringify(state, null, 2); }
+  /* Remove every trace and give back a fresh state. */
+  function deleteAll(storage, key) { try { storage.removeItem(key); } catch (e) { /* storage unavailable: nothing was kept */ } return defaultState(); }
+
+  return { SCHEMA_VERSION, WARN_MS, EXT_MIN, FOCUS_IDS, MAX_FOCUS, GROUP_OF, dateKey, addDays, defaultState, migrate, isHeavy, heavyNudge, clampMin, totalMin, endsAt, remainingMs, isOver, shouldWarn, startSession, extendActive, endActive, pairStatus, startPaired, quietNow, weekSummary, sampleWeek, planFriendText, exportJSON, deleteAll };
+})();
+if (typeof module !== 'undefined') module.exports = MBCore;
+</script>
+
+<script>
+(() => {
+'use strict';
+const MB = MBCore;
+const CONTENT = JSON.parse(document.getElementById('content').textContent);
+const STORE_KEY = 'mindbridge.v1';
+const T = { en: { today: 'Today', session: 'Session', unwind: 'Unwind', week: 'My week', help: 'Get help', settings: 'Settings' } };
+const t = k => (T[S.settings.lang] || T.en)[k] || T.en[k] || k;
+
+/* ---------- state (device only) ---------- */
+let memoryOnly = false;
+function load() {
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) return MB.migrate(JSON.parse(raw)); } catch (e) { memoryOnly = true; }
+  return MB.defaultState();
+}
+let S = load();
+function save() {
+  if (!S.profile.consentAt) return;            // nothing is saved before the privacy note is accepted
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { memoryOnly = true; }
+}
+function ensureDefaults() {
+  if (!S.settings.windDownItems.length) S.settings.windDownItems = CONTENT.windDown.map((text, i) => ({ id: 'd' + i, text }));
+}
+ensureDefaults();
+
+/* ---------- transient UI state (never stored) ---------- */
+const ui = {
+  tab: 'today', modal: null,
+  welcome: { focus: [] },
+  setup: { type: 'study', minutes: 45, goal: '', pairOn: false, pairType: 'gaming', pairMin: 30, step: 1 },
+  checkin: { mood: null, sleep: 7, pulled: null },
+  felt: null, swapKind: 'all', swapId: null, reframe: 0,
+  wdEdit: false, editContact: null, planText: '', planCopied: false
+};
+const reasonOf = id => CONTENT.reasons.find(r => r.id === id);
+const today = () => MB.dateKey(new Date());
+
+/* ---------- helpers ---------- */
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ICONS = {
+  today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  session: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/>',
+  unwind: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  week: '<path d="M4 20V11M10 20V5M16 20v-8M3 20h18"/>',
+  help: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M5.6 5.6l3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9"/>',
+  settings: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+  book: '<path d="M5 4h13v15H7a2 2 0 0 0-2 2z"/><path d="M5 4v17"/>',
+  game: '<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10v5M4.5 12.5h5"/><circle cx="16" cy="11.5" r="1"/><circle cx="18.5" cy="14" r="1"/>',
+  tv: '<rect x="3" y="5" width="18" height="13" rx="2"/><path d="M10.5 9l4 2.5-4 2.5z"/>',
+  news: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h4"/>',
+  work: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/>',
+  chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+  phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>', plus: '<path d="M12 5v14M5 12h14"/>', minus: '<path d="M5 12h14"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', shuffle: '<path d="M3 7h4l10 10h4M3 17h4l3-3M14 10l3-3h4M18 4l3 3-3 3M18 14l3 3-3 3"/>',
+  share: '<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/>',
+  download: '<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>', trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/>'
+};
+const ic = (n, cls = '') => `<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
+const LOGO = `<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="var(--primary)"/><path d="M10 40c8-18 36-18 44 0" fill="none" stroke="var(--on-primary)" stroke-width="4.5" stroke-linecap="round"/><path d="M10 40h44" stroke="var(--on-primary)" stroke-width="4.5" stroke-linecap="round"/><path d="M22 40v-8M32 40v-10M42 40v-8" stroke="var(--on-primary)" stroke-width="3" stroke-linecap="round" opacity=".75"/></svg>`;
+const fmt12 = hhmm => { const [h, m] = hhmm.split(':').map(Number); const ap = h >= 12 ? 'pm' : 'am'; return ((h + 11) % 12 + 1) + ':' + String(m).padStart(2, '0') + ' ' + ap; };
+const fmtDur = m => m >= 60 ? Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : '') : m + ' min';
+function fmtClock(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : String(m)) + ':' + String(ss).padStart(2, '0');
+}
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast'); el.textContent = msg;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.textContent = ''; }, 3200);
+}
+const FACES = ['😞', '😕', '😐', '🙂', '😄'], FACE_LABELS = ['Very low', 'Low', 'Okay', 'Good', 'Great'];
+function applyTheme() {
+  const th = S.settings.theme, r = document.documentElement;
+  if (th === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', th);
+}
+
+/* ---------- notifications (only if the student allowed them) ---------- */
+async function notify(title, body) {
+  try {
+    if (!S.settings.notificationsAllowed || !('Notification' in window) || Notification.permission !== 'granted') return;
+    if ('serviceWorker' in navigator) { const reg = await navigator.serviceWorker.getRegistration(); if (reg) { reg.showNotification(title, { body, icon: 'icon.svg', tag: 'mindbridge' }); return; } }
+    new Notification(title, { body });
+  } catch (e) { /* notifications are optional */ }
+}
+const buzz = () => { try { navigator.vibrate && navigator.vibrate([120, 80, 120]); } catch (e) {} };
+
+/* ---------- views ---------- */
+function topBar() {
+  return `<header class="top"><div class="brand">${LOGO}<span>MindBridge</span></div>
+  <button class="icon-btn" data-act="go" data-v="prefs" aria-label="Settings">${ic('settings')}</button></header>`;
+}
+function tabBar() {
+  const tabs = [['today', 'today'], ['session', 'session'], ['unwind', 'unwind'], ['week', 'week'], ['help', 'help']];
+  return `<nav class="tabs" aria-label="Main"><ul>${tabs.map(([id, ico]) =>
+    `<li class="${id === 'help' ? 'help' : ''}"><button data-act="go" data-v="${id}" ${ui.tab === id ? 'aria-current="page"' : ''}>${ic(ico)}<span>${t(id)}</span></button></li>`).join('')}</ul></nav>`;
+}
+
+function viewWelcome() {
+  const n = ui.welcome.focus.length;
+  return `<main class="stack welcome">
+    <div class="logo" style="width:64px">${LOGO}</div>
+    <div class="stack" style="gap:8px"><h1>Use your phone on purpose.</h1>
+    <p class="muted">MindBridge helps you decide how long, get a gentle warning before time is up, wind down at night, and know who to talk to. It does not block anything and it never judges you.</p></div>
+    <section class="card stack" style="gap:12px" aria-labelledby="priv"><h2 id="priv" class="row" style="gap:8px">${ic('shield')} Your privacy, in plain words</h2>
+      <ul class="plain small">
+        <li>${ic('check')}<span>No account, name, email or phone number. Ever.</span></li>
+        <li>${ic('check')}<span>Everything you enter stays on <b>this device only</b>. There is no server that receives it, and nobody can see it: not teachers, hostel staff or parents.</span></li>
+        <li>${ic('check')}<span>The app never reads your messages, photos, contacts, notifications or location, and has no tracking.</span></li>
+        <li>${ic('check')}<span>You can delete everything with one tap in Settings.</span></li>
+        <li>${ic('check')}<span>MindBridge is not a counselor. For real support, the Get help tab lists real people.</span></li>
+      </ul></section>
+    <section class="stack" style="gap:10px" aria-labelledby="fa"><div><h2 id="fa">What would you like help with?</h2><p class="sub">Choose up to 4. You can change this later. <span class="pill ghost" id="fcount">${n}/4</span></p></div>
+      <div class="chips">${CONTENT.focusAreas.map(f => `<button class="chip" data-act="focusPick" data-v="${f.id}" aria-pressed="${ui.welcome.focus.includes(f.id)}" title="${esc(f.hint)}">${esc(f.label)}</button>`).join('')}</div></section>
+    <div class="stack" style="gap:8px"><button class="btn block" data-act="accept" ${n ? '' : 'disabled'}>I understand, let's start</button>
+    <p class="tiny muted" style="text-align:center">${n ? 'Nothing is saved until you tap this button.' : 'Pick at least one area to continue.'}</p></div>
+  </main>`;
+}
+
+function viewToday() {
+  const hr = new Date().getHours(), greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  const a = S.active, ci = S.checkins.find(c => c.date === today());
+  const plans = S.profile.focusAreas.map(id => CONTENT.plans[id]).filter(Boolean);
+  const quiet = MB.quietNow(S.settings.quietFrom, S.settings.quietTo, new Date());
+  const nudge = MB.heavyNudge(S.checkins, today());
+  return `<main class="stack">
+    <div><p class="eyebrow">Assalam o Alaikum</p><h1>${greet}.</h1></div>
+    ${nudge ? `<section class="card help-card stack" style="gap:8px"><h2>Two heavy days in a row.</h2><p class="small">Talking to someone can help. A bad day is information, not failure, and you do not have to sort it out alone.</p><div><button class="btn sm" style="background:var(--help);color:#fff" data-act="go" data-v="help">See who can help</button></div></section>` : ''}
+    <section class="hero"><svg class="arc" viewBox="0 0 64 64" aria-hidden="true"><path d="M2 52C10 6 54 6 62 52" fill="none" stroke="currentColor" stroke-width="3"/><path d="M2 52h60M16 52V30M32 52V16M48 52V30" stroke="currentColor" stroke-width="2"/></svg>
+      ${a ? `<p class="eyebrow" style="color:inherit;opacity:.8">Session running</p><h2>${esc(reasonOf(a.type).label)} until ${new Date(MB.endsAt(a)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</h2><button class="btn" data-act="go" data-v="session">Open my session</button>`
+        : `<p class="eyebrow" style="color:inherit;opacity:.8">Before you open it</p><h2>Decide how long, first.</h2><p class="small" style="margin-top:4px">Pick what it is for and a time you can live with.</p><button class="btn" data-act="pauseOpen">Pause and choose</button>`}
+    </section>
+    <section class="card stack" style="gap:10px"><h2>Your plan for today</h2>
+      <ul class="plain small">${plans.map(p => `<li>${ic('check')}<span>${esc(p)}</span></li>`).join('')}</ul>
+      <div class="row small muted">${quiet ? `<span class="pill warm">Quiet hours are on</span> until ${fmt12(S.settings.quietTo)}` : `<span class="pill">Quiet hours</span> ${fmt12(S.settings.quietFrom)} to ${fmt12(S.settings.quietTo)}`}</div>
+    </section>
+    <section class="card stack" aria-labelledby="ci"><div><h2 id="ci">Daily check-in</h2><p class="sub">Private, on this device. Takes 20 seconds.</p></div>
+      <div><div class="label" id="moodlbl" style="margin-bottom:8px">How is your mood?</div>
+        <div class="faces" role="group" aria-labelledby="moodlbl">${FACES.map((f, i) => `<button class="face" data-act="mood" data-v="${i + 1}" aria-pressed="${ui.checkin.mood === i + 1}" aria-label="${FACE_LABELS[i]}">${f}<span>${FACE_LABELS[i]}</span></button>`).join('')}</div></div>
+      <div class="field"><label for="sleep">Hours slept last night: <b><span data-mirror="checkin.sleep">${ui.checkin.sleep}</span> h</b></label>
+        <input type="range" id="sleep" min="0" max="12" step="0.5" value="${ui.checkin.sleep}" data-bind="checkin.sleep"></div>
+      <div><div class="label" id="pulllbl" style="margin-bottom:8px">What pulled you most today?</div>
+        <div class="chips" role="group" aria-labelledby="pulllbl">${CONTENT.pulledBy.map(p => `<button class="chip sm" data-act="pulled" data-v="${p.id}" aria-pressed="${ui.checkin.pulled === p.id}">${esc(p.label)}</button>`).join('')}</div></div>
+      <button class="btn block" data-act="saveCheckin" ${ui.checkin.mood ? '' : 'disabled'}>${ci ? "Update today's check-in" : 'Save check-in'}</button>
+      ${ci ? `<p class="tiny muted">Saved for today. You can change it any time.</p>` : ''}
+    </section>
+  </main>`;
+}
+
+function setupForm() {
+  const u = ui.setup, r = reasonOf(u.type);
+  return `<div class="stack">
+    <div><div class="label" id="typelbl" style="margin-bottom:8px">What is this time for?</div>
+      <div class="grid2" role="group" aria-labelledby="typelbl">${CONTENT.reasons.map(x => `<button class="reason" data-act="pickType" data-v="${x.id}" aria-pressed="${u.type === x.id}">${ic(x.icon)}<b>${esc(x.label)}</b><small>suggested ${x.minutes} min</small></button>`).join('')}</div></div>
+    <div class="field"><label for="mins">How many minutes?</label>
+      <div class="stepper"><button class="icon-btn" data-act="minStep" data-v="-5" aria-label="5 minutes less">${ic('minus')}</button>
+      <input type="number" id="mins" inputmode="numeric" min="1" max="240" value="${u.minutes}" data-bind="setup.minutes" aria-label="Minutes">
+      <button class="icon-btn" data-act="minStep" data-v="5" aria-label="5 minutes more">${ic('plus')}</button></div>
+      <div class="chips">${[10, 15, 30, 45, 60].map(m => `<button class="chip sm" data-act="setMin" data-v="${m}" aria-pressed="${Number(u.minutes) === m}">${m}</button>`).join('')}</div></div>
+    <div class="field"><label for="goal">Goal (optional)</label><input type="text" id="goal" maxlength="80" value="${esc(u.goal)}" placeholder="${esc(r.goal)}" data-bind="setup.goal"></div>
+    ${u.type === 'study' ? `<div class="card flat stack" style="gap:10px"><label class="check" style="border:0;padding:0"><input type="checkbox" data-act="pairToggle" ${u.pairOn ? 'checked' : ''}><span><b>Study first, then play</b><br><span class="small muted">Plan a reward window that opens when this study session ends.</span></span></label>
+      ${u.pairOn ? `<div class="chips">${['gaming', 'watching'].map(x => `<button class="chip sm" data-act="pairType" data-v="${x}" aria-pressed="${u.pairType === x}">${esc(reasonOf(x).label)}</button>`).join('')}${[20, 30, 45].map(m => `<button class="chip sm" data-act="pairMin" data-v="${m}" aria-pressed="${Number(u.pairMin) === m}">${m} min</button>`).join('')}</div>` : ''}</div>` : ''}
+  </div>`;
+}
+
+function viewSession() {
+  const a = S.active, now = Date.now();
+  if (a) return a && MB.isOver(a, now) ? sessionOver(a) : sessionRunning(a, now);
+  const pair = MB.pairStatus(S);
+  const todays = S.sessions.filter(s => MB.dateKey(s.startedAt) === today()).slice(-5).reverse();
+  return `<main class="stack"><div><h1>Start a session</h1><p class="sub">Choose first, then go open your app.</p></div>
+    ${pair ? `<section class="card ${pair.unlocked ? '' : 'flat'} stack" style="gap:10px"><div class="row between"><h2>${esc(reasonOf(pair.type).label)} window: ${pair.minutes} min</h2><span class="pill ${pair.unlocked ? '' : 'ghost'}">${pair.unlocked ? 'Unlocked' : 'Opens after study'}</span></div>
+      <p class="small muted">${pair.unlocked ? 'Nice work on the study session. Your reward time is ready.' : 'Finish your study session to open this window. It is a plan you made, not a lock.'}</p>
+      <div class="row"><button class="btn" data-act="startPaired" ${pair.unlocked ? '' : 'disabled'}>Start ${esc(reasonOf(pair.type).label.toLowerCase())} window</button><button class="btn link" data-act="clearPair">Remove</button></div></section>` : ''}
+    <section class="card">${setupForm()}<button class="btn block" style="margin-top:16px" data-act="startSession">Start session</button></section>
+    ${todays.length ? `<section class="card stack" style="gap:6px"><h2>Today so far</h2>${todays.map(s => `<div class="row between small" style="padding:6px 0;border-top:1px solid var(--line)"><span class="row" style="gap:8px">${ic(reasonOf(s.type).icon)} ${esc(reasonOf(s.type).label)}${s.goal ? ' · <span class="muted">' + esc(s.goal) + '</span>' : ''}</span><span class="muted">${s.plannedMin + (s.extended ? 5 : 0)} min${s.feltAfter ? ' · ' + s.feltAfter : ''}</span></div>`).join('')}</section>` : ''}
+    <p class="note">MindBridge cannot see your real screen time or lock any app. You plan and log your own sessions. That is on purpose: it needs no permissions and nobody can watch you.</p>
+  </main>`;
+}
+
+function sessionRunning(a, now) {
+  const rem = MB.remainingMs(a, now), total = MB.totalMin(a) * 60000, warn = rem <= MB.WARN_MS && a.plannedMin > 5;
+  const C = 2 * Math.PI * 98, off = C * (1 - Math.max(0, rem) / total);
+  return `<main class="stack"><div><p class="eyebrow">${esc(reasonOf(a.type).label)}</p><h1>${a.goal ? esc(a.goal) : 'You are in a session'}</h1></div>
+    ${warn ? `<div class="banner" role="alert">${ic('session')}<div><b>5 minutes left.</b><div class="small">A good moment to finish what you are on.</div></div></div>` : ''}
+    <section class="card stack" style="align-items:center;gap:10px"><div class="clockwrap ${warn ? 'warn' : ''}" id="clockwrap"><svg viewBox="0 0 230 230" aria-hidden="true"><circle class="ring-bg" cx="115" cy="115" r="98" fill="none" stroke-width="12"/><circle class="ring" id="ring" cx="115" cy="115" r="98" fill="none" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/></svg>
+      <div class="t"><b id="clock" role="timer">${fmtClock(rem)}</b><span class="small muted">of ${MB.totalMin(a)} min${a.extended ? ' (extended)' : ''}</span></div></div>
+      <p class="small muted" style="text-align:center">Go and open your app. Keep this page open (or installed) so the reminder can reach you.</p>
+      <button class="btn ghost block" data-act="finishNow">I'm done early</button></section>
+    ${MB.pairStatus(S) ? `<p class="note">After this study session, your ${esc(reasonOf(S.pair.type).label.toLowerCase())} window (${S.pair.minutes} min) opens in the Session tab.</p>` : ''}
+  </main>`;
+}
+
+function reframeCard() {
+  const c = CONTENT.reframes[ui.reframe % CONTENT.reframes.length];
+  return `<section class="card flat stack" style="gap:8px"><span class="eyebrow">A thought for the feed</span><p class="swap-text">${esc(c.text)}</p><p class="small muted">${esc(c.tip)}</p><div><button class="btn sm ghost" data-act="nextReframe">Another thought</button></div></section>`;
+}
+function swapPool() { return CONTENT.swaps.filter(s => ui.swapKind === 'all' || s.kind === ui.swapKind); }
+function currentSwap() { const pool = swapPool(); return pool.find(s => s.id === ui.swapId) || pool[0]; }
+function swapCard(compact) {
+  const sw = currentSwap();
+  return `<section class="card ${compact ? 'flat' : ''} stack" style="gap:10px"><div class="row between"><h2>${compact ? 'Try something offline' : 'Offline ideas'}</h2><button class="icon-btn" data-act="nextSwap" aria-label="Show another idea">${ic('shuffle')}</button></div>
+    ${compact ? '' : `<div class="chips">${[['all', 'Any'], ['solo', 'On my own'], ['friends', 'With friends']].map(([k, l]) => `<button class="chip sm" data-act="swapKind" data-v="${k}" aria-pressed="${ui.swapKind === k}">${l}</button>`).join('')}</div>`}
+    <p class="swap-text">${esc(sw.text)}</p><div class="row"><span class="pill ghost">${sw.kind === 'solo' ? 'On my own' : 'With friends'}</span><button class="btn sm soft" data-act="planFriend">Plan it with a friend</button></div></section>`;
+}
+
+function sessionOver(a) {
+  const r = reasonOf(a.type), pair = MB.pairStatus(S);
+  return `<main class="stack"><div><p class="eyebrow">${esc(r.label)}${a.goal ? ' · ' + esc(a.goal) : ''}</p><h1>Time's up. How did it go?</h1><p class="sub">No judgment. This only helps you see your own patterns.</p></div>
+    <section class="card stack" style="gap:12px"><div class="chips" role="group" aria-label="How did it feel afterwards">${[['good', 'Good'], ['okay', 'Okay'], ['drained', 'Drained']].map(([v, l]) => `<button class="chip" data-act="felt" data-v="${v}" aria-pressed="${ui.felt === v}">${l}</button>`).join('')}</div>
+      <button class="btn block" data-act="endSession">Log it and finish</button>
+      ${a.extended ? `<p class="small muted" style="text-align:center">You used your one 5-minute extension.</p>` : `<button class="btn ghost block" data-act="extend">${ic('plus')} 5 more minutes (one time)</button>`}
+    </section>
+    ${r.social ? reframeCard() : ''}
+    ${swapCard(true)}
+    ${pair && !pair.unlocked && S.pair && S.pair.studySessionId === a.id ? `<p class="note">Finishing opens your ${esc(reasonOf(pair.type).label.toLowerCase())} window (${pair.minutes} min).</p>` : ''}
+  </main>`;
+}
+
+function viewUnwind() {
+  const done = S.windDownDone.date === today() ? S.windDownDone.ids : [], items = S.settings.windDownItems;
+  const quiet = MB.quietNow(S.settings.quietFrom, S.settings.quietTo, new Date());
+  return `<main class="stack"><div><h1>Unwind</h1><p class="sub">Close the day on your terms.</p></div>
+    <section class="card stack" aria-labelledby="qh"><div class="row between"><h2 id="qh">Quiet hours</h2><span class="pill ${quiet ? 'warm' : 'ghost'}">${quiet ? 'On now' : 'Off now'}</span></div>
+      <div class="row" style="flex-wrap:nowrap"><div class="field grow"><label for="qf">From</label><input type="time" id="qf" value="${S.settings.quietFrom}" data-bind="S.settings.quietFrom"></div><div class="field grow"><label for="qt">Until</label><input type="time" id="qt" value="${S.settings.quietTo}" data-bind="S.settings.quietTo"></div></div>
+      <div class="field"><label for="ac">Who can still call me?</label>
+        <div class="chips">${S.settings.allowedContacts.map((n, i) => `<span class="chip sm on">${esc(n)}<button class="btn link" style="min-height:24px;padding:0" data-act="rmContact" data-v="${i}" aria-label="Remove ${esc(n)}">${ic('x')}</button></span>`).join('') || '<span class="small muted">Nobody added yet. Names stay on this device.</span>'}</div>
+        <div class="row" style="flex-wrap:nowrap"><input type="text" id="ac" maxlength="30" placeholder="e.g. Ammi, Abbu, my brother"><button class="btn soft" data-act="addContact">Add</button></div></div>
+      <details><summary>Turn on Do Not Disturb: Android</summary><div>${esc(CONTENT.dnd.android)}</div></details>
+      <details><summary>Turn on Focus: iPhone</summary><div>${esc(CONTENT.dnd.iphone)}</div></details>
+      <p class="note">A website cannot silence other apps for you. Set the schedule once on your phone using the steps above; MindBridge keeps your plan and reminds you.</p></section>
+    <section class="card stack" aria-labelledby="wd"><div class="row between"><h2 id="wd">Evening wind-down</h2><button class="btn sm ghost" data-act="wdEdit">${ui.wdEdit ? 'Done' : 'Edit list'}</button></div>
+      <p class="sub">${done.length} of ${items.length} done today. Resets tomorrow.</p>
+      <div>${items.map(it => `<div class="check ${done.includes(it.id) ? 'done' : ''}"><label class="row grow" style="flex-wrap:nowrap;cursor:pointer"><input type="checkbox" data-act="wdTick" data-v="${it.id}" ${done.includes(it.id) ? 'checked' : ''}><span>${esc(it.text)}</span></label>${ui.wdEdit ? `<button class="icon-btn" data-act="wdRemove" data-v="${it.id}" aria-label="Remove ${esc(it.text)}">${ic('trash')}</button>` : ''}</div>`).join('')}</div>
+      ${ui.wdEdit ? `<div class="row" style="flex-wrap:nowrap"><input type="text" id="wdnew" maxlength="60" placeholder="Add your own step"><button class="btn soft" data-act="wdAdd">Add</button></div><button class="btn link" data-act="wdReset">Restore the default list</button>` : ''}</section>
+    ${swapCard(false)}
+    ${reframeCard()}
+  </main>`;
+}
+
+function barRows(w) {
+  const max = Math.max(1, ...Object.values(w.byType));
+  const color = { study: 'var(--c-study)', gaming: 'var(--c-fun)', watching: 'var(--c-fun)', news: 'var(--c-social)', client: 'var(--c-work)', chats: 'var(--c-social)' };
+  return CONTENT.reasons.map(r => `<div class="stack" style="gap:4px"><div class="row between small"><span class="row" style="gap:8px">${ic(r.icon)}${esc(r.label)}</span><b style="font-variant-numeric:tabular-nums">${fmtDur(w.byType[r.id])}</b></div><div class="bar" aria-hidden="true"><i style="width:${(w.byType[r.id] / max * 100).toFixed(1)}%;background:${color[r.id]}"></i></div></div>`).join('');
+}
+function sleepChart(w) {
+  const W = 320, H = 150, L = 28, R = 8, T = 14, B = 24, bw = (W - L - R) / 7, y = v => T + (H - T - B) * (1 - v / 10);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Hours slept, last 7 days">
+    ${[0, 4, 8].map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 3}" text-anchor="end">${v}h</text>`).join('')}
+    ${w.days.map((d, i) => { const cx = L + bw * i + bw / 2; return (d.sleep != null ? `<rect x="${cx - 12}" y="${y(d.sleep)}" width="24" height="${y(0) - y(d.sleep)}" rx="5" fill="var(--c-sleep)"/><text x="${cx}" y="${y(d.sleep) - 4}" text-anchor="middle" style="fill:var(--ink);font-weight:700">${d.sleep}</text>` : `<text x="${cx}" y="${y(0) - 6}" text-anchor="middle">–</text>`) + `<text x="${cx}" y="${H - 8}" text-anchor="middle">${d.label}</text>`; }).join('')}</svg>`;
+}
+function moodChart(w) {
+  const W = 320, H = 150, L = 28, R = 8, T = 12, B = 24, step = (W - L - R) / 7, y = v => T + (H - T - B) * (1 - (v - 1) / 4), x = i => L + step * i + step / 2;
+  let path = '', prev = null;
+  w.days.forEach((d, i) => { if (d.mood != null) { path += (prev === i - 1 ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(d.mood).toFixed(1) + ' '; prev = i; } });
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Mood, last 7 days">
+    ${[1, 3, 5].map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 3}" text-anchor="end">${FACES[v - 1]}</text>`).join('')}
+    <path d="${path}" fill="none" stroke="var(--c-mood)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${w.days.map((d, i) => (d.mood != null ? `<circle cx="${x(i)}" cy="${y(d.mood)}" r="5" fill="var(--c-mood)" stroke="var(--surface)" stroke-width="2"/>` : '') + `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${d.label}</text>`).join('')}</svg>`;
+}
+function viewWeek() {
+  let w = MB.weekSummary(S, today());
+  if (!w.hasData) w = MB.sampleWeek(today());
+  const G = [['study', 'Study', 'var(--c-study)'], ['work', 'Client work', 'var(--c-work)'], ['fun', 'Games & watching', 'var(--c-fun)'], ['social', 'Chats & news', 'var(--c-social)']];
+  const moodWord = w.avgMood == null ? '–' : FACE_LABELS[Math.round(w.avgMood) - 1];
+  return `<main class="stack"><div><h1>My week</h1><p class="sub">Private patterns, no scores. Last 7 days.</p></div>
+    ${w.sample ? `<div class="banner calm">${ic('week')}<div><b>Example data.</b><div class="small">This is a sample week so you can see how it looks. Your own sessions and check-ins replace it.</div></div></div>` : ''}
+    <div class="tiles"><div class="tile"><span class="tiny muted">Planned time</span><b>${Math.floor(w.total / 60)}h ${w.total % 60}m</b></div><div class="tile"><span class="tiny muted">Avg sleep</span><b>${w.avgSleep == null ? '–' : w.avgSleep.toFixed(1) + ' h'}</b></div><div class="tile"><span class="tiny muted">Avg mood</span><b>${moodWord}</b></div></div>
+    <section class="card stack"><h2>Planned time by type</h2>${barRows(w)}</section>
+    <section class="card stack"><h2>Study vs entertainment</h2>
+      <div class="stacked" role="img" aria-label="${G.map(([k, l]) => l + ' ' + fmtDur(w.groups[k])).join(', ')}">${G.map(([k, l, c]) => w.groups[k] ? `<i style="width:${(w.groups[k] / Math.max(1, w.total) * 100).toFixed(1)}%;background:${c}"></i>` : '').join('')}</div>
+      <div class="legend">${G.map(([k, l, c]) => `<span style="--dot:${c}">${l} <b>${fmtDur(w.groups[k])}</b></span>`).join('')}</div></section>
+    <section class="card stack"><h2>Sleep</h2><p class="sub">Hours slept each night, from your check-ins.</p>${sleepChart(w)}</section>
+    <section class="card stack"><h2>Mood</h2><p class="sub">A bad day is information, not failure.</p>${moodChart(w)}</section>
+    <button class="btn ghost block" data-act="exportData">${ic('download')} Download my data (JSON)</button>
+    <p class="tiny muted" style="text-align:center">The file is created on this device. Nothing is uploaded.</p></main>`;
+}
+
+function personCard(key, title) {
+  const c = S.contacts[key];
+  if (ui.editContact === key) return `<div class="stack" style="gap:10px;padding:12px 0;border-top:1px solid var(--line)"><b>${title}</b>
+    <div class="field"><label for="cn-${key}">Name</label><input type="text" id="cn-${key}" maxlength="40" value="${esc(c.name)}" autocomplete="off"></div>
+    <div class="field"><label for="cp-${key}">Phone number</label><input type="tel" id="cp-${key}" maxlength="20" value="${esc(c.phone)}" autocomplete="off" inputmode="tel"></div>
+    <div class="row"><button class="btn sm" data-act="saveContact" data-v="${key}">Save</button><button class="btn sm ghost" data-act="cancelContact">Cancel</button></div></div>`;
+  return `<div class="contact"><div class="grow"><div class="small muted">${title}</div>${c.name || c.phone ? `<div><b>${esc(c.name || 'Saved number')}</b></div><div class="num small">${esc(c.phone)}</div>` : `<div class="small muted">Not added yet</div>`}</div>
+    <div class="row" style="flex-wrap:nowrap">${c.phone ? `<a class="btn sm" href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${ic('phone')} Call</a>` : ''}<button class="btn sm ${c.phone ? 'ghost' : 'soft'}" data-act="editContact" data-v="${key}">${c.phone ? 'Edit' : 'Add'}</button></div></div>`;
+}
+function helpLine(h) {
+  return `<div class="contact"><div class="grow"><b>${esc(h.name)}</b><div class="small muted">${esc(h.note)}</div>${h.number ? `<div class="num" style="font-size:1.25rem">${esc(h.number)}</div>` : `<div class="small muted" style="margin-top:4px">Number not added yet. Your campus counselor can share it.</div>`}</div>
+    ${h.number ? `<a class="btn sm" href="tel:${esc(h.number)}">${ic('phone')} Call</a>` : ''}</div>`;
+}
+function viewHelp() {
+  const h = CONTENT.helplines;
+  return `<main class="stack"><section class="card help-card stack" style="gap:8px"><h1>You are not alone.</h1><p>A real person can help. Reaching out is a strong thing to do, not a weak one.</p></section>
+    <section class="card"><h2>Your people</h2><p class="sub">Saved on this device only.</p>${personCard('counselor', 'Campus counselor')}${personCard('trusted', 'A person I trust')}</section>
+    <section class="card"><h2>Helplines</h2><p class="sub">Tap to call. Calls are between you and the helpline; MindBridge sees nothing.</p>${helpLine(h.umang)}${helpLine(h.nccia)}${helpLine(h.rescue)}${helpLine(h.police)}</section>
+    <section class="card"><h2>If someone is harassing you online</h2><p class="sub" style="margin-bottom:8px">It is not your fault. Take these steps in order.</p><ol class="steps small">${CONTENT.harassment.map(s => `<li>${esc(s)}</li>`).join('')}</ol></section>
+    <p class="note">MindBridge is not a counselor and does not give mental-health advice. It points you to real people.</p></main>`;
+}
+
+function viewPrefs() {
+  const f = S.profile.focusAreas, perm = 'Notification' in window ? Notification.permission : 'unsupported';
+  return `<main class="stack"><div class="row"><button class="icon-btn" data-act="go" data-v="today" aria-label="Back">${ic('back')}</button><h1>Settings</h1></div>
+    <section class="card stack"><h2>Focus areas</h2><p class="sub">Choose up to 4. They shape your plan on Today.</p><div class="chips">${CONTENT.focusAreas.map(x => `<button class="chip" data-act="focusSet" data-v="${x.id}" aria-pressed="${f.includes(x.id)}">${esc(x.label)}</button>`).join('')}</div></section>
+    <section class="card stack"><h2>Reminders</h2>
+      <label class="check" style="border:0"><input type="checkbox" data-act="notifToggle" ${S.settings.notificationsAllowed && perm === 'granted' ? 'checked' : ''} ${perm === 'unsupported' ? 'disabled' : ''}><span>Notify me 5 minutes before a session ends<br><span class="small muted">${perm === 'denied' ? 'Notifications are blocked in your browser settings.' : perm === 'unsupported' ? 'Not supported in this browser. The in-app banner still works.' : 'Optional. The in-app banner always works.'}</span></span></label></section>
+    <section class="card stack"><h2>Quiet hours defaults</h2><div class="row" style="flex-wrap:nowrap"><div class="field grow"><label for="qf2">From</label><input type="time" id="qf2" value="${S.settings.quietFrom}" data-bind="S.settings.quietFrom"></div><div class="field grow"><label for="qt2">Until</label><input type="time" id="qt2" value="${S.settings.quietTo}" data-bind="S.settings.quietTo"></div></div></section>
+    <section class="card stack"><h2>Appearance and language</h2><div class="chips">${[['auto', 'Match my phone'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button class="chip sm" data-act="theme" data-v="${v}" aria-pressed="${S.settings.theme === v}">${l}</button>`).join('')}</div>
+      <div class="field"><label for="lang">Language</label><select id="lang" disabled><option>English</option><option>اردو (coming soon)</option></select></div></section>
+    <section class="card stack"><h2>Your data</h2><p class="small muted">Everything is stored only in this browser${memoryOnly ? ' (storage is blocked here, so data lasts until you close the page)' : ''}.</p>
+      <button class="btn ghost block" data-act="exportData">${ic('download')} Download my data (JSON)</button>
+      <button class="btn block" style="background:var(--help);color:#fff" data-act="deleteOpen">${ic('trash')} Delete all my data</button></section>
+    <p class="tiny muted" style="text-align:center">MindBridge v1 · made by students for students · no account, no tracking</p></main>`;
+}
+
+/* ---------- modals ---------- */
+function modalHtml() {
+  const m = ui.modal; if (!m) return '';
+  let body = '';
+  if (m === 'pause') {
+    const u = ui.setup;
+    if (S.active) body = `<h2>You already have a session running.</h2><button class="btn block" data-act="go" data-v="session">Open it</button><button class="btn ghost block" data-act="closeModal">Close</button>`;
+    else if (u.step === 1) body = `<div class="breath" aria-hidden="true"></div><div style="text-align:center"><h2>Take a breath. What is this for?</h2><p class="sub">Deciding first is the whole trick.</p></div>
+      <div class="grid2">${CONTENT.reasons.map(x => `<button class="reason" data-act="pauseType" data-v="${x.id}">${ic(x.icon)}<b>${esc(x.label)}</b><small>suggested ${x.minutes} min</small></button>`).join('')}</div><button class="btn link" data-act="closeModal">Not now</button>`;
+    else body = `<h2>${esc(reasonOf(u.type).label)}: how long?</h2><p class="sub">Edit the time if you like. You will get a warning 5 minutes before the end.</p>
+      <div class="field"><div class="stepper"><button class="icon-btn" data-act="minStep" data-v="-5" aria-label="5 minutes less">${ic('minus')}</button><input type="number" id="mins" inputmode="numeric" min="1" max="240" value="${u.minutes}" data-bind="setup.minutes" aria-label="Minutes"><button class="icon-btn" data-act="minStep" data-v="5" aria-label="5 minutes more">${ic('plus')}</button></div>
+      <div class="chips">${[10, 15, 30, 45, 60].map(x => `<button class="chip sm" data-act="setMin" data-v="${x}" aria-pressed="${Number(u.minutes) === x}">${x}</button>`).join('')}</div></div>
+      <div class="field"><label for="goal">Goal (optional)</label><input type="text" id="goal" maxlength="80" value="${esc(u.goal)}" placeholder="${esc(reasonOf(u.type).goal)}" data-bind="setup.goal"></div>
+      <button class="btn block" data-act="startSession" data-autofocus>Start session</button><button class="btn ghost block" data-act="pauseBack">Back</button>`;
+  } else if (m === 'plan') {
+    body = `<h2>Plan it with a friend</h2><p class="sub">Edit the message, then send it yourself. MindBridge never sends anything.</p><textarea id="plantext" aria-label="Message">${esc(ui.planText)}</textarea>
+      <div class="row"><button class="btn" data-act="planCopy">${ic('copy')} ${ui.planCopied ? 'Copied' : 'Copy'}</button>${navigator.share ? `<button class="btn soft" data-act="planShare">${ic('share')} Share</button>` : ''}<a class="btn soft" id="wa" href="#" target="_blank" rel="noopener">Open in WhatsApp</a></div><button class="btn link" data-act="closeModal">Close</button>`;
+  } else if (m === 'delete') {
+    body = `<h2>Delete all your data?</h2><p class="small muted">This removes your check-ins, sessions, contacts and settings from this device. It cannot be undone, and there is no copy anywhere else.</p><button class="btn block" style="background:var(--help);color:#fff" data-act="deleteConfirm">Yes, delete everything</button><button class="btn ghost block" data-act="closeModal" data-autofocus>Keep my data</button>`;
+  } else if (m === 'checkinSaved') {
+    const msg = ui.savedMood <= 2 ? 'Thank you for being honest. A bad day is information, not failure.' : ui.savedMood === 3 ? 'Thanks. A steady day is a good day.' : 'Good to hear. Notice what helped today.';
+    body = `<h2>Saved.</h2><p>${msg}</p><button class="btn block" data-act="closeModal" data-autofocus>OK</button>`;
+  }
+  return `<div class="overlay" data-act="overlay"><div class="modal" role="dialog" aria-modal="true" tabindex="-1">${body}</div></div>`;
+}
+
+/* ---------- render ---------- */
+function activeBanner() {
+  const a = S.active; if (!a || ui.tab === 'session') return '';
+  const now = Date.now(), over = MB.isOver(a, now), warn = a.warned && a.plannedMin > 5;
+  if (!over && !warn) return '';
+  return `<div class="banner" role="alert" style="margin-bottom:12px"><div class="grow"><b>${over ? "Time's up." : '5 minutes left.'}</b><div class="small">${esc(reasonOf(a.type).label)}${a.goal ? ' · ' + esc(a.goal) : ''}</div></div><button class="btn sm warm" data-act="go" data-v="session">${over ? 'Wrap up' : 'Open'}</button></div>`;
+}
+function render() {
+  const app = document.getElementById('app');
+  let html;
+  if (!S.profile.consentAt) html = viewWelcome();
+  else {
+    const views = { today: viewToday, session: viewSession, unwind: viewUnwind, week: viewWeek, help: viewHelp, prefs: viewPrefs };
+    html = (ui.tab === 'prefs' ? '' : topBar()) + activeBanner() + (views[ui.tab] || viewToday)() + tabBar();
+  }
+  app.innerHTML = html + modalHtml();
+  if (ui.modal === 'plan') { const wa = document.getElementById('wa'); if (wa) wa.href = 'https://wa.me/?text=' + encodeURIComponent(ui.planText); }
+  if (ui.modal) { const m = app.querySelector('.modal'); (m.querySelector('[data-autofocus]') || m).focus({ preventScroll: true }); }
+  document.title = S.active ? 'MindBridge · ' + fmtClock(MB.remainingMs(S.active, Date.now())) : 'MindBridge';
+}
+function go(tab) {
+  ui.tab = tab; ui.modal = null; ui.felt = null; ui.editContact = null; ui.wdEdit = false;
+  try { history.replaceState(null, '', '#' + (tab === 'help' ? 'get-help' : tab === 'week' ? 'my-week' : tab)); } catch (e) {}
+  render(); window.scrollTo(0, 0);
+}
+function tabFromHash() {
+  const h = location.hash.slice(1), map = { today: 'today', session: 'session', unwind: 'unwind', 'my-week': 'week', 'get-help': 'help', prefs: 'prefs' };
+  return map[h] || 'today';
+}
+
+/* ---------- actions ---------- */
+function applyType(id) { const r = reasonOf(id); ui.setup.type = id; ui.setup.minutes = r.minutes; ui.setup.goal = ''; }
+function setFocus(id, list, max) { const i = list.indexOf(id); if (i >= 0) list.splice(i, 1); else if (list.length < max) list.push(id); else toast('You can pick up to ' + max + '. Tap one to swap it out.'); }
+function startFromSetup() {
+  const u = ui.setup;
+  const s = MB.startSession(S, { type: u.type, minutes: u.minutes, goal: u.goal, pair: u.type === 'study' && u.pairOn ? { type: u.pairType, minutes: u.pairMin } : null }, Date.now());
+  if (!s) { toast('A session is already running.'); return; }
+  save(); ui.modal = null; ui.setup.step = 1; ui.setup.goal = '';
+  toast('Session started. Go and open your app.'); go('session');
+}
+function finishSession() {
+  const done = MB.endActive(S, Date.now(), ui.felt);
+  if (!done) return; ui.felt = null; save();
+  const p = MB.pairStatus(S);
+  toast(p && p.unlocked ? 'Logged. Your ' + reasonOf(p.type).label.toLowerCase() + ' window is open.' : 'Logged. Thanks for checking in with yourself.');
+  render(); window.scrollTo(0, 0);
+}
+function exportData() {
+  const blob = new Blob([MB.exportJSON(S)], { type: 'application/json' }), url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'mindbridge-my-data.json'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000); toast('Data file created on this device.');
+}
+function initCheckin() {
+  const c = S.checkins.find(x => x.date === today());
+  if (c) ui.checkin = { mood: c.mood, sleep: c.sleepHours == null ? 7 : c.sleepHours, pulled: c.pulledBy || null };
+}
+
+const actions = {
+  go: v => go(v),
+  focusPick: v => { setFocus(v, ui.welcome.focus, MB.MAX_FOCUS); render(); },
+  accept: () => {
+    if (!ui.welcome.focus.length) return;
+    S.profile.focusAreas = ui.welcome.focus.slice(); S.profile.consentAt = Date.now(); ensureDefaults(); save(); applyTheme(); go('today');
+  },
+  focusSet: v => { const f = S.profile.focusAreas.slice(); setFocus(v, f, MB.MAX_FOCUS); if (f.length) { S.profile.focusAreas = f; save(); } else toast('Keep at least one focus area.'); render(); },
+  mood: v => { ui.checkin.mood = Number(v); render(); },
+  pulled: v => { ui.checkin.pulled = ui.checkin.pulled === v ? null : v; render(); },
+  saveCheckin: () => {
+    if (!ui.checkin.mood) return;
+    const entry = { date: today(), mood: ui.checkin.mood, sleepHours: Number(ui.checkin.sleep), pulledBy: ui.checkin.pulled };
+    S.checkins = S.checkins.filter(c => c.date !== entry.date).concat(entry).sort((a, b) => a.date < b.date ? -1 : 1).slice(-120);
+    save(); ui.savedMood = entry.mood; ui.modal = 'checkinSaved'; render();
+  },
+  pauseOpen: () => { ui.setup.step = 1; ui.modal = 'pause'; render(); },
+  pauseType: v => { applyType(v); ui.setup.step = 2; render(); },
+  pauseBack: () => { ui.setup.step = 1; render(); },
+  closeModal: () => { ui.modal = null; render(); },
+  overlay: (v, el, e) => { if (e.target === el) { ui.modal = null; render(); } },
+  pickType: v => { applyType(v); render(); },
+  setMin: v => { ui.setup.minutes = Number(v); render(); },
+  minStep: v => { ui.setup.minutes = MB.clampMin(Number(ui.setup.minutes) + Number(v), 25); render(); },
+  pairToggle: () => { ui.setup.pairOn = !ui.setup.pairOn; render(); },
+  pairType: v => { ui.setup.pairType = v; render(); },
+  pairMin: v => { ui.setup.pairMin = Number(v); render(); },
+  startSession: startFromSetup,
+  startPaired: () => { const s = MB.startPaired(S, Date.now()); if (s) { save(); toast('Window started. Enjoy it, and stop when the timer says.'); go('session'); } },
+  clearPair: () => { S.pair = null; save(); render(); },
+  finishNow: () => { ui.felt = null; finishSession(); },
+  felt: v => { ui.felt = ui.felt === v ? null : v; render(); },
+  endSession: finishSession,
+  extend: () => { if (MB.extendActive(S, Date.now())) { save(); toast('5 more minutes. This is your one extension.'); render(); } },
+  nextSwap: () => { const p = swapPool(), i = p.findIndex(s => s.id === (currentSwap() || {}).id); ui.swapId = p[(i + 1) % p.length].id; render(); },
+  swapKind: v => { ui.swapKind = v; ui.swapId = null; render(); },
+  nextReframe: () => { ui.reframe++; render(); },
+  planFriend: () => { ui.planText = MB.planFriendText(currentSwap(), 'this evening'); ui.planCopied = false; ui.modal = 'plan'; render(); },
+  planCopy: async () => {
+    const el = document.getElementById('plantext'); ui.planText = el.value;
+    try { await navigator.clipboard.writeText(ui.planText); ui.planCopied = true; } catch (e) { el.select(); toast('Press and hold to copy the selected text.'); return; }
+    render();
+  },
+  planShare: () => { const el = document.getElementById('plantext'); ui.planText = el.value; navigator.share({ text: ui.planText }).catch(() => {}); },
+  addContact: () => { const el = document.getElementById('ac'), v = el.value.trim(); if (!v) return; S.settings.allowedContacts.push(v.slice(0, 30)); save(); render(); },
+  rmContact: v => { S.settings.allowedContacts.splice(Number(v), 1); save(); render(); },
+  wdTick: v => { const d = S.windDownDone; if (d.date !== today()) { d.date = today(); d.ids = []; } const i = d.ids.indexOf(v); if (i >= 0) d.ids.splice(i, 1); else d.ids.push(v); save(); render(); },
+  wdEdit: () => { ui.wdEdit = !ui.wdEdit; render(); },
+  wdRemove: v => { S.settings.windDownItems = S.settings.windDownItems.filter(x => x.id !== v); save(); render(); },
+  wdAdd: () => { const el = document.getElementById('wdnew'), v = el.value.trim(); if (!v) return; S.settings.windDownItems.push({ id: 'u' + Date.now().toString(36), text: v.slice(0, 60) }); save(); render(); },
+  wdReset: () => { S.settings.windDownItems = []; ensureDefaults(); save(); render(); },
+  editContact: v => { ui.editContact = v; render(); },
+  cancelContact: () => { ui.editContact = null; render(); },
+  saveContact: v => { S.contacts[v] = { name: document.getElementById('cn-' + v).value.trim().slice(0, 40), phone: document.getElementById('cp-' + v).value.trim().slice(0, 20) }; save(); ui.editContact = null; toast('Saved on this device.'); render(); },
+  theme: v => { S.settings.theme = v; save(); applyTheme(); render(); },
+  notifToggle: async (v, el) => {
+    if (!('Notification' in window)) return;
+    if (!el.checked) { S.settings.notificationsAllowed = false; save(); render(); return; }
+    let p = Notification.permission; if (p === 'default') { try { p = await Notification.requestPermission(); } catch (e) {} }
+    S.settings.notificationsAllowed = p === 'granted'; save(); render();
+  },
+  exportData,
+  deleteOpen: () => { ui.modal = 'delete'; render(); },
+  deleteConfirm: () => {
+    S = MB.deleteAll(localStorage, STORE_KEY); ensureDefaults();
+    ui.modal = null; ui.tab = 'today'; ui.welcome.focus = []; ui.checkin = { mood: null, sleep: 7, pulled: null };
+    document.documentElement.removeAttribute('data-theme'); try { history.replaceState(null, '', location.pathname); } catch (e) {}
+    render(); toast('All your data is deleted.');
+  }
+};
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  if (el.tagName === 'INPUT' && el.type === 'checkbox' && e.type === 'click') { /* handled below via change */ return; }
+  const fn = actions[el.dataset.act]; if (fn) fn(el.dataset.v, el, e);
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.matches('input[type=checkbox][data-act]')) { const fn = actions[el.dataset.act]; if (fn) fn(el.dataset.v, el, e); return; }
+  if (el.dataset.bind && el.dataset.bind.startsWith('S.')) { setPath(el.dataset.bind, el.value); save(); render(); }
+});
+document.addEventListener('input', e => {
+  const b = e.target.dataset && e.target.dataset.bind; if (!b || b.startsWith('S.')) return;
+  setPath('ui.' + b, e.target.type === 'number' || e.target.type === 'range' ? e.target.value : e.target.value);
+  document.querySelectorAll('[data-mirror="' + b + '"]').forEach(n => { n.textContent = e.target.value; });
+});
+function setPath(path, val) {
+  const parts = path.split('.'), root = parts[0] === 'S' ? S : ui; let o = root;
+  for (let i = 1; i < parts.length - 1; i++) o = o[parts[i]];
+  o[parts[parts.length - 1]] = val;
+}
+document.addEventListener('keydown', e => {
+  if (!ui.modal) return;
+  if (e.key === 'Escape') { ui.modal = null; render(); return; }
+  if (e.key === 'Tab') {
+    const m = document.querySelector('.modal'); const f = [...m.querySelectorAll('button,a[href],input,textarea,select')].filter(x => !x.disabled);
+    if (!f.length) return; const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && (document.activeElement === first || document.activeElement === m)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
+window.addEventListener('hashchange', () => { const t2 = tabFromHash(); if (S.profile.consentAt && t2 !== ui.tab) { ui.tab = t2; ui.modal = null; render(); } });
+
+/* ---------- timer loop ---------- */
+function tick() {
+  const a = S.active; if (!a) return;
+  const now = Date.now(); let redraw = false;
+  if (MB.shouldWarn(a, now)) { a.warned = true; save(); notify('5 minutes left', 'A good moment to finish what you are on.'); buzz(); redraw = true; }
+  if (MB.isOver(a, now) && !a.overNotified) { a.overNotified = true; save(); notify("Time's up", 'Open MindBridge to wrap up. No rush, no judgment.'); buzz(); redraw = true; }
+  if (redraw && !ui.modal) { render(); return; }
+  const rem = MB.remainingMs(a, now), clock = document.getElementById('clock');
+  document.title = 'MindBridge · ' + fmtClock(rem);
+  if (clock) {
+    clock.textContent = fmtClock(rem);
+    const ring = document.getElementById('ring'), C = 2 * Math.PI * 98;
+    if (ring) ring.setAttribute('stroke-dashoffset', (C * (1 - Math.max(0, rem) / (MB.totalMin(a) * 60000))).toFixed(1));
+  }
+}
+setInterval(tick, 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+
+/* ---------- boot ---------- */
+applyTheme(); initCheckin(); ui.tab = tabFromHash(); render(); tick();
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+window.__MB = { get state() { return S; }, ui, render, go };
+})();
+</script>
+</body>
+</html>
